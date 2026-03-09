@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY seed_mongo.py /app/seed_mongo.py
+
+CMD ["python", "/app/seed_mongo.py"]
+

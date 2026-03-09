@@ -1,0 +1,136 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: etl_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7.0
+    container_name: etl_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh 'mongodb://mongo:mongo@localhost:27017/admin?authSource=admin' --quiet --eval 'db.adminCommand({ ping: 1 }).ok'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo-seed:
+    build:
+      context: ./generator
+    container_name: etl_mongo_seed
+    environment:
+      MONGO_URI: mongodb://mongo:mongo@mongo:27017/admin?authSource=admin
+      MONGO_DB: source_db
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  airflow-init:
+    build:
+      context: ./airflow
+    container_name: etl_airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - >
+        airflow db migrate &&
+        airflow users create
+        --username airflow
+        --password airflow
+        --firstname ETL
+        --lastname Admin
+        --role Admin
+        --email airflow@example.com || true
+    environment: &airflow_env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "True"
+      ETL_MONGO_URI: mongodb://mongo:mongo@mongo:27017/admin?authSource=admin
+      ETL_MONGO_DB: source_db
+      ETL_PG_HOST: postgres
+      ETL_PG_PORT: "5432"
+      ETL_PG_DB: warehouse
+      ETL_PG_USER: postgres
+      ETL_PG_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs
+    restart: "no"
+
+  airflow-webserver:
+    build:
+      context: ./airflow
+    container_name: etl_airflow_webserver
+    command: webserver
+    environment: *airflow_env
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      mongo-seed:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\"",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  airflow-scheduler:
+    build:
+      context: ./airflow
+    container_name: etl_airflow_scheduler
+    command: scheduler
+    environment: *airflow_env
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      mongo-seed:
+        condition: service_completed_successfully
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs
+
+volumes:
+  postgres_data:
+  mongo_data:
+  airflow_logs:
