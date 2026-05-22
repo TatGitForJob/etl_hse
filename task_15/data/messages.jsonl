@@ -1,0 +1,10 @@
+{"event_id":1,"student":"student_1","course":"etl-processes","score":71,"event_time":"2026-05-22T09:00:01Z"}
+{"event_id":2,"student":"student_2","course":"etl-processes","score":72,"event_time":"2026-05-22T09:00:02Z"}
+{"event_id":3,"student":"student_3","course":"etl-processes","score":73,"event_time":"2026-05-22T09:00:03Z"}
+{"event_id":4,"student":"student_4","course":"etl-processes","score":74,"event_time":"2026-05-22T09:00:04Z"}
+{"event_id":5,"student":"student_5","course":"etl-processes","score":75,"event_time":"2026-05-22T09:00:05Z"}
+{"event_id":6,"student":"student_6","course":"etl-processes","score":76,"event_time":"2026-05-22T09:00:06Z"}
+{"event_id":7,"student":"student_7","course":"etl-processes","score":77,"event_time":"2026-05-22T09:00:07Z"}
+{"event_id":8,"student":"student_8","course":"etl-processes","score":78,"event_time":"2026-05-22T09:00:08Z"}
+{"event_id":9,"student":"student_9","course":"etl-processes","score":79,"event_time":"2026-05-22T09:00:09Z"}
+{"event_id":10,"student":"student_10","course":"etl-processes","score":80,"event_time":"2026-05-22T09:00:10Z"}
